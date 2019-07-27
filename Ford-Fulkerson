@@ -106,8 +106,8 @@ def save_result(result,save_path):
 
 def main():
     g=FlowNetwork()##新建图G=(V,E)
-    file_path=r'C:\Users\StephenZHX\Desktop\输气管网路径优化\Ford-Fulkerson\matrix.xlsx'
-    save_path=r'C:\Users\StephenZHX\Desktop\输气管网路径优化\Ford-Fulkerson\result.xls'
+    file_path=r'matrix.xlsx'
+    save_path=r'result.xls'
     creat_graph(g,file_path)
 ##    计算网络最大流量
     g.max_flow(x,y)
