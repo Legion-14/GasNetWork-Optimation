@@ -1,0 +1,118 @@
+import math
+import xlrd,xlwt
+
+class Edge(object):##创建对象：边
+    def __init__(self, u, v, w):
+        self.source = u
+        self.sink = v
+        self.capacity = w
+    def __repr__(self):
+        return "%s->%s:%s" % (self.source, self.sink, self.capacity)
+
+class FlowNetwork(object):##创建对象：网络
+    def __init__(self):
+        self.adj = {}
+        self.flow = {}
+
+    def add_vertex(self, vertex):##定义方法：添加网络节点
+        self.adj[vertex] = []
+
+    def get_edges(self, v):##定义方法：读取字典adj中v的key
+        return self.adj[v]
+
+    def add_edge(self, u, v, w=0):##定义方法：添加弧，默认弧容量=0
+        if u == v:
+            raise ValueError("u == v")
+        edge = Edge(u,v,w)
+        redge = Edge(v,u,0)
+        edge.redge = redge
+        redge.redge = edge
+        self.adj[u].append(edge)
+        self.adj[v].append(redge)
+        self.flow[edge] = 0
+        self.flow[redge] = 0
+
+    def find_path(self, source, sink, path):##定义方法：寻找增广路经
+        if source == sink:
+            return path
+        for edge in self.get_edges(source):
+            residual = edge.capacity - self.flow[edge]
+            if residual > 0 and edge not in path:
+                result = self.find_path( edge.sink, sink, path + [edge])
+                if result != None:
+                    return result
+
+    def max_flow(self, source, sink):##定义方法：计算最大流量
+        path = self.find_path(source, sink, [])
+        while path != None:
+            residuals = [edge.capacity - self.flow[edge] for edge in path]
+            flow = min(residuals)
+            for edge in path:
+                self.flow[edge] += flow
+                self.flow[edge.redge] -= flow
+            path = self.find_path(source, sink, [])
+        return sum(self.flow[edge] for edge in self.get_edges(source))
+
+
+def creat_graph(graph,file_path):
+    data=xlrd.open_workbook(file_path)##读取Excel的数据：管网相关数据
+    adjacency_matrix=data.sheet_by_name('Adjacency Matrix')##读取工作表：邻接矩阵
+    edge_capacity=data.sheet_by_name("Edge's Capacity")##读取工作表：弧容量
+    global nums
+    nums=adjacency_matrix.nrows
+    vertexes=[x+str(y) for x in 'v' for y in range(1,nums+1)]##管网节点列表
+##    vertexes=adjacency_matrix.row_values(0,start_colx=1)
+
+    ##向图Graph中添加节点
+    for v in vertexes:
+        graph.add_vertex(v)
+##    向图G中添加节点与节点的连接情况 cell(i,j):第i列第j行的单元格
+##    aij：vi到vj之间弧的条数。若有向图是严格的，则邻接矩阵A为对称阵
+    for j in range(0,nums):##列
+        for i in range(0,nums):##行
+            if adjacency_matrix.cell(i,j).value == 1:
+                graph.add_edge(vertexes[i],vertexes[j],edge_capacity.cell(i,j).value)
+            elif adjacency_matrix.cell(i,j).value == -1:
+                graph.add_edge(vertexes[j],vertexes[i],edge_capacity.cell(i,j).value)
+
+##    将多个不同源点、汇点用一个源点x和一个汇点y通过容量为inf的弧连接在一起
+    sources=data.sheet_by_name('Sources').col_values(0)
+    sinks=data.sheet_by_name('Sinks').col_values(0)
+    if len(sources) != 1:
+        graph.add_vertex('x')
+        for _ in range(0,len(sources)):
+            graph.add_edge('x',sources[_],float('inf'))
+    if len(sinks) != 1:
+        graph.add_vertex('y')
+        for _ in range(0,len(sinks)):
+            graph.add_edge('y',sinks[_],float('inf'))
+    global x,y
+    x,y=sources[-1],sinks[-1]
+
+def save_result(result,save_path):
+    data=xlwt.Workbook()
+    sheet=data.add_sheet('Result')
+    sol_edges=[]
+    sol_flow=[]
+    for key,value in result.items():
+        if result[key]>0:
+            sol_edges.append(key)
+            sol_flow.append(value)
+    for i in range(0,len(sol_edges)):
+        sheet.write(i,0,str(sol_edges[i]))
+        sheet.write(i,1,str(sol_flow[i]))
+    data.save(save_path)
+    print('结果保存成功！')
+
+def main():
+    g=FlowNetwork()##新建图G=(V,E)
+    file_path=r'C:\Users\StephenZHX\Desktop\输气管网路径优化\Ford-Fulkerson\matrix.xlsx'
+    save_path=r'C:\Users\StephenZHX\Desktop\输气管网路径优化\Ford-Fulkerson\result.xls'
+    creat_graph(g,file_path)
+##    计算网络最大流量
+    g.max_flow(x,y)
+    result=g.flow
+    save_result(result,save_path)
+
+if __name__ == '__main__':
+    main()
